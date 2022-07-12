@@ -1,6 +1,7 @@
 #------------------------------Dependencias para Correo de recuperacion---------------------------#
 
 from email.mime.multipart import MIMEMultipart
+from sre_parse import State
 import uuid
 from django.template.loader import render_to_string
 from email.mime.text import MIMEText
@@ -31,7 +32,7 @@ from datetime import datetime
 from apis.login.models import User
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import UserSerializer
-from .serializers import CustomTokenObtainPairSerializer
+from .serializers import CustomTokenObtainPairSerializer,ChangePasswordSerializer
 from django.contrib.auth import authenticate
 from requests import request
 
@@ -93,7 +94,6 @@ class Recovery_password(GenericAPIView):
         print(request.data['email'])
         try:
             user = User.objects.get(email=request.data['email'])
-            print (user)
             self.send_email_reset_pwd(user)
             return Response({'message' : 'Se ha enviado email'}, status=status.HTTP_201_CREATED)
         except Exception as e:
@@ -128,26 +128,45 @@ class Login(TokenObtainPairView):
         user_intento = User.objects.get(username=request.data['username'])
         
         login_serializer = self.serializer_class(data=request.data)
-        if user:
-            if user_intento.intentos == 3:
-                return Response({'error': 'Muchos intentos sapo perro'}, status = status.HTTP_400_BAD_REQUEST)
+        if user_intento.username == "admin":
+            if user:
+                if login_serializer.is_valid():
+                    user_serializer = UserSerializer(user)
+                    return Response({
+                        'token': login_serializer.validated_data.get('access'),
+                        'refresh-token': login_serializer.validated_data.get('refresh'),
+                        'user': user_serializer.data,
+                        'message': 'Inicio De Sesion Exitosa'
+                    },status = status.HTTP_200_OK)
+                else:
+                    
+                    return Response({'error': 'Contraseña o Nombre De Usuario Incorrectos'}, status = status.HTTP_400_BAD_REQUEST)
                 
             
-            elif login_serializer.is_valid():
-                user_serializer = UserSerializer(user)
-                return Response({
-                    'token': login_serializer.validated_data.get('access'),
-                    'refresh-token': login_serializer.validated_data.get('refresh'),
-                    'user': user_serializer.data,
-                    'message': 'Inicio De Sesion Exitosa'
-                },status = status.HTTP_200_OK)
-            return Response({'error': 'Contraseña o Nombre De Usuario Incorrectos'}, status = status.HTTP_400_BAD_REQUEST)
-                    
+            return Response({'error': 'Querido admin, Contraseña errada' }, status = status.HTTP_404_NOT_FOUND)
         else:
-            myIntentos = user_intento.intentos + 1
-            intentosRestantes = 3 - user_intento.intentos
-            User.objects.filter(username=user_intento).update(intentos=myIntentos)
-            return Response({'error': 'Contraseña o usuario no valido', 'intentos_restante': intentosRestantes   }, status = status.HTTP_400_BAD_REQUEST)
+            if user:
+                if user_intento.intentos == 3:
+                    return Response({'error': 'Muchos intentos'}, status = status.HTTP_400_BAD_REQUEST)
+                
+                else: 
+                    if login_serializer.is_valid():
+                        user_serializer = UserSerializer(user)
+                        return Response({
+                            'token': login_serializer.validated_data.get('access'),
+                            'refresh-token': login_serializer.validated_data.get('refresh'),
+                            'user': user_serializer.data,
+                            'message': 'Inicio De Sesion Exitosa'
+                        },status = status.HTTP_200_OK)
+                        
+            else:
+                myIntentos = user_intento.intentos + 1
+                intentosRestantes = 3 - user_intento.intentos
+                User.objects.filter(username=user_intento).update(intentos=myIntentos)
+                return Response({'error': 'Contraseña o usuario no valido', 'intentos_restante': intentosRestantes   }, status = status.HTTP_400_BAD_REQUEST)
+                        
+                    
+                
 
 #------------------------------------------------LOGOUT-----------------------------------------------#
 
@@ -162,4 +181,28 @@ class Logout(GenericAPIView):
         return Response({'error': 'No existe este usuario.'}, status=status.HTTP_400_BAD_REQUEST)
 
 #------------------------------------------------AFK------------------------------------------------#
+
+#------------------------------------------------Password------------------------------------------------#
+class ChangePasswordView(generics.UpdateAPIView):
+    """
+    An endpoint for changing password.
+    """
+    serializer_class = ChangePasswordSerializer
+    model = User
+    permission_classes = (IsAuthenticated,)
+
+    def get_object(self, queryset=None):
+        obj = self.request.user
+        return obj
+
+    def update(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            # if not self.object.check_password(serializer.data.get("old_password")):
+            #      return Response({"old_password": ["Wrong password."]}, status=status.HTTP_400_BAD_REQUEST)
+            self.object.set_password(serializer.data.get("new_password"))
+            self.object.save()
+            return Response({'message': 'Contraseña correctamente cambiada'}, status = status.HTTP_200_OK)
+        return Response({'error':'Ha ocurrido un error al cambiar la contraseña'}, status=status.HTTP_400_BAD_REQUEST)
 
