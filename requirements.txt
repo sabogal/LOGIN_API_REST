@@ -1,0 +1,24 @@
+#DJANGO
+Django==4.0.5
+django-cors-headers==3.13.0
+#DJANGO REST-FRAMEWORK
+djangorestframework==3.13.1
+djangorestframework-simplejwt==5.2.0
+pyrsistent
+matplotlib
+gunicorn
+python-decouple
+dj-database-url
+#MYSQL
+#mysqlclient
+PyMySQL==1.0.2
+django-mysql==2.2.0
+#HISTORICO DE MODELOS
+django-simple-history==3.0.0
+#django-xhtml2pdf
+# suds
+suds==1.0.0
+#request
+requests==2.2.0
+
+

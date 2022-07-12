@@ -1,0 +1,5 @@
+
+##base de datos SQLITE 
+/db.sqlite3
+## Pycache
+*.pyc
