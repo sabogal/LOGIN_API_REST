@@ -121,17 +121,37 @@ class Login(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         username = request.data.get('username', '')
         password = request.data.get('password', '')
+        state_model = request.data.get('is_active', '')
+        print(state_model)
         user = authenticate(
             username=username,
             password=password
         )
         user_intento = User.objects.get(username=request.data['username'])
-        #user_state = User.objects.get()
-        print(request.data.get('is_active'))
+        print(user_intento.is_active)
         login_serializer = self.serializer_class(data=request.data)
 
-        if User.is_active == "false":
-            return Response({'error': 'La cuenta esta desactivada' }, status = status.HTTP_404_NOT_FOUND)
+        if user_intento.is_active == True:
+            if user_intento.intentos <= 3:
+                if user:
+                    if user_intento.intentos <= 3:
+                        if login_serializer.is_valid():
+                            user_serializer = UserSerializer(user)
+                            return Response({
+                                'token': login_serializer.validated_data.get('access'),
+                                'refresh-token': login_serializer.validated_data.get('refresh'),
+                                'user': user_serializer.data,
+                                'message': 'Inicio De Sesion Exitosa'
+                            },status = status.HTTP_200_OK)
+                        return Response({'error': 'ha ocurrido un error'}, status = status.HTTP_404_NOT_FOUND)
+                    return Response({'error': 'Demasiados intentos el usuario ha sido blooqueado'}, status = status.HTTP_400_BAD_REQUEST)
+                #return Response({'error': 'Ha ocurrido un error'}, status = status.HTTP_400_BAD_REQUEST)
+                myIntentos = user_intento.intentos + 1
+                intentosRestantes = 3 - user_intento.intentos
+                User.objects.filter(username=user_intento).update(intentos=myIntentos)
+                return Response({'error': 'Contraseña no valida', 'intentos_restante': intentosRestantes   }, status = status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Demasiados intentos el usuario ha sido bloqueado'}, status = status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'El Usuario esta desactivado '},status=status.HTTP_400_BAD_REQUEST)
             # if user:
             #     if login_serializer.is_valid():
             #         user_serializer = UserSerializer(user)
@@ -147,26 +167,7 @@ class Login(TokenObtainPairView):
                 
             
             # return Response({'error': 'Querido admin, Contraseña errada' }, status = status.HTTP_404_NOT_FOUND)
-        else:
-            if user_intento.intentos <= 3:
-                if user:
-                    if user_intento.intentos <= 3 :
-                        if login_serializer.is_valid():
-                            user_serializer = UserSerializer(user)
-                            return Response({
-                                'token': login_serializer.validated_data.get('access'),
-                                'refresh-token': login_serializer.validated_data.get('refresh'),
-                                'user': user_serializer.data,
-                                'message': 'Inicio De Sesion Exitosa'
-                            },status = status.HTTP_200_OK)           
-                    return Response({'error': 'Demasiados intentos'}, status = status.HTTP_400_BAD_REQUEST)
-                #return Response({'error': 'Ha ocurrido un error'}, status = status.HTTP_400_BAD_REQUEST)
-                myIntentos = user_intento.intentos + 1
-                intentosRestantes = 3 - user_intento.intentos
-                User.objects.filter(username=user_intento).update(intentos=myIntentos)
-                return Response({'error': 'Contraseña no valido', 'intentos_restante': intentosRestantes   }, status = status.HTTP_400_BAD_REQUEST)
-            return Response({'error': 'Demasiados intentos sapoperro'}, status = status.HTTP_400_BAD_REQUEST)
-
+            
                   
                     
             # if user:
