@@ -1,11 +1,11 @@
 #------------------------------Dependencias para Correo de recuperacion---------------------------#
 
 from email.mime.multipart import MIMEMultipart
-from sre_parse import State
-import uuid
 from django.template.loader import render_to_string
 from email.mime.text import MIMEText
 import smtplib
+
+from pymysql import DataError
 from proyecto_Dagma import settings
 
 #--------------------------------Dependencias para registro de usuario----------------------------#
@@ -121,77 +121,28 @@ class Login(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         username = request.data.get('username', '')
         password = request.data.get('password', '')
-        state_model = request.data.get('is_active', '')
-        print(state_model)
-        user = authenticate(
-            username=username,
-            password=password
-        )
+        user = authenticate(username=username,password=password)
         user_intento = User.objects.get(username=request.data['username'])
-        print(user_intento.is_active)
         login_serializer = self.serializer_class(data=request.data)
-
         if user_intento.is_active == True:
             if user_intento.intentos <= 3:
                 if user:
-                    if user_intento.intentos <= 3:
-                        if login_serializer.is_valid():
-                            user_serializer = UserSerializer(user)
-                            return Response({
-                                'token': login_serializer.validated_data.get('access'),
-                                'refresh-token': login_serializer.validated_data.get('refresh'),
-                                'user': user_serializer.data,
+                    if login_serializer.is_valid():
+                        user_serializer = UserSerializer(user)
+                        return Response({
+                            'token': login_serializer.validated_data.get('access'),
+                            'refresh-token': login_serializer.validated_data.get('refresh'),
+                            'user': user_serializer.data,
                                 'message': 'Inicio De Sesion Exitosa'
-                            },status = status.HTTP_200_OK)
-                        return Response({'error': 'ha ocurrido un error'}, status = status.HTTP_404_NOT_FOUND)
-                    return Response({'error': 'Demasiados intentos el usuario ha sido blooqueado'}, status = status.HTTP_400_BAD_REQUEST)
-                #return Response({'error': 'Ha ocurrido un error'}, status = status.HTTP_400_BAD_REQUEST)
+                        },status = status.HTTP_200_OK)
+                    return Response({'error': 'ha ocurrido un error'}, status = status.HTTP_404_NOT_FOUND)
                 myIntentos = user_intento.intentos + 1
                 intentosRestantes = 3 - user_intento.intentos
                 User.objects.filter(username=user_intento).update(intentos=myIntentos)
+
                 return Response({'error': 'Contraseña no valida', 'intentos_restante': intentosRestantes   }, status = status.HTTP_400_BAD_REQUEST)
             return Response({'error': 'Demasiados intentos el usuario ha sido bloqueado'}, status = status.HTTP_400_BAD_REQUEST)
         return Response({'error': 'El Usuario esta desactivado '},status=status.HTTP_400_BAD_REQUEST)
-            # if user:
-            #     if login_serializer.is_valid():
-            #         user_serializer = UserSerializer(user)
-            #         return Response({
-            #             'token': login_serializer.validated_data.get('access'),
-            #             'refresh-token': login_serializer.validated_data.get('refresh'),
-            #             'user': user_serializer.data,
-            #             'message': 'Inicio De Sesion Exitosa'
-            #         },status = status.HTTP_200_OK)
-            #     else:
-                    
-            #         return Response({'error': 'Contraseña o Nombre De Usuario Incorrectos'}, status = status.HTTP_400_BAD_REQUEST)
-                
-            
-            # return Response({'error': 'Querido admin, Contraseña errada' }, status = status.HTTP_404_NOT_FOUND)
-            
-                  
-                    
-            # if user:
-            #     if user_intento.intentos >= 3:
-            #         return Response({'error': 'Muchos intentos'}, status = status.HTTP_400_BAD_REQUEST)
-                
-            #     else: 
-            #         if login_serializer.is_valid():
-            #             user_serializer = UserSerializer(user)
-            #             return Response({
-            #                 'token': login_serializer.validated_data.get('access'),
-            #                 'refresh-token': login_serializer.validated_data.get('refresh'),
-            #                 'user': user_serializer.data,
-            #                 'message': 'Inicio De Sesion Exitosa'
-            #             },status = status.HTTP_200_OK)
-                        
-            # else:
-            #     myIntentos = user_intento.intentos + 1
-            #     intentosRestantes = 0 + user_intento.intentos
-            #     User.objects.filter(username=user_intento).update(intentos=myIntentos)
-            #     return Response({'error': 'Contraseña o usuario no valido', 'intentos_restante': intentosRestantes   }, status = status.HTTP_400_BAD_REQUEST)
-                        
-                    
-                
 
 #------------------------------------------------LOGOUT-----------------------------------------------#
 
