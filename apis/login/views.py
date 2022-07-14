@@ -109,61 +109,85 @@ class UserRegisterAPIView(generics.CreateAPIView):
         serializer = self.serializer_class(data = request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"message": "creamos melosos"},status=status.HTTP_200_OK)
-        return Response({'message':"paila mi so"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "El usuario ha sido creado exitosamente"},status=status.HTTP_200_OK)
+        return Response({'message':"Ha ocurrido un error al crear el usuario"}, status=status.HTTP_400_BAD_REQUEST)
 
 #----------------------------------------------LOGIN--------------------------------------------#
 
 class Login(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
         username = request.data.get('username', '')
         password = request.data.get('password', '')
-        contador = []
         user = authenticate(
             username=username,
             password=password
         )
         user_intento = User.objects.get(username=request.data['username'])
-        
+        #user_state = User.objects.get()
+        print(request.data.get('is_active'))
         login_serializer = self.serializer_class(data=request.data)
-        if user_intento.username == "admin":
-            if user:
-                if login_serializer.is_valid():
-                    user_serializer = UserSerializer(user)
-                    return Response({
-                        'token': login_serializer.validated_data.get('access'),
-                        'refresh-token': login_serializer.validated_data.get('refresh'),
-                        'user': user_serializer.data,
-                        'message': 'Inicio De Sesion Exitosa'
-                    },status = status.HTTP_200_OK)
-                else:
+
+        if User.is_active == "false":
+            return Response({'error': 'La cuenta esta desactivada' }, status = status.HTTP_404_NOT_FOUND)
+            # if user:
+            #     if login_serializer.is_valid():
+            #         user_serializer = UserSerializer(user)
+            #         return Response({
+            #             'token': login_serializer.validated_data.get('access'),
+            #             'refresh-token': login_serializer.validated_data.get('refresh'),
+            #             'user': user_serializer.data,
+            #             'message': 'Inicio De Sesion Exitosa'
+            #         },status = status.HTTP_200_OK)
+            #     else:
                     
-                    return Response({'error': 'Contraseña o Nombre De Usuario Incorrectos'}, status = status.HTTP_400_BAD_REQUEST)
+            #         return Response({'error': 'Contraseña o Nombre De Usuario Incorrectos'}, status = status.HTTP_400_BAD_REQUEST)
                 
             
-            return Response({'error': 'Querido admin, Contraseña errada' }, status = status.HTTP_404_NOT_FOUND)
+            # return Response({'error': 'Querido admin, Contraseña errada' }, status = status.HTTP_404_NOT_FOUND)
         else:
-            if user:
-                if user_intento.intentos == 3:
-                    return Response({'error': 'Muchos intentos'}, status = status.HTTP_400_BAD_REQUEST)
-                
-                else: 
-                    if login_serializer.is_valid():
-                        user_serializer = UserSerializer(user)
-                        return Response({
-                            'token': login_serializer.validated_data.get('access'),
-                            'refresh-token': login_serializer.validated_data.get('refresh'),
-                            'user': user_serializer.data,
-                            'message': 'Inicio De Sesion Exitosa'
-                        },status = status.HTTP_200_OK)
-                        
-            else:
+            if user_intento.intentos <= 3:
+                if user:
+                    if user_intento.intentos <= 3 :
+                        if login_serializer.is_valid():
+                            user_serializer = UserSerializer(user)
+                            return Response({
+                                'token': login_serializer.validated_data.get('access'),
+                                'refresh-token': login_serializer.validated_data.get('refresh'),
+                                'user': user_serializer.data,
+                                'message': 'Inicio De Sesion Exitosa'
+                            },status = status.HTTP_200_OK)           
+                    return Response({'error': 'Demasiados intentos'}, status = status.HTTP_400_BAD_REQUEST)
+                #return Response({'error': 'Ha ocurrido un error'}, status = status.HTTP_400_BAD_REQUEST)
                 myIntentos = user_intento.intentos + 1
                 intentosRestantes = 3 - user_intento.intentos
                 User.objects.filter(username=user_intento).update(intentos=myIntentos)
-                return Response({'error': 'Contraseña o usuario no valido', 'intentos_restante': intentosRestantes   }, status = status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Contraseña no valido', 'intentos_restante': intentosRestantes   }, status = status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Demasiados intentos sapoperro'}, status = status.HTTP_400_BAD_REQUEST)
+
+                  
+                    
+            # if user:
+            #     if user_intento.intentos >= 3:
+            #         return Response({'error': 'Muchos intentos'}, status = status.HTTP_400_BAD_REQUEST)
+                
+            #     else: 
+            #         if login_serializer.is_valid():
+            #             user_serializer = UserSerializer(user)
+            #             return Response({
+            #                 'token': login_serializer.validated_data.get('access'),
+            #                 'refresh-token': login_serializer.validated_data.get('refresh'),
+            #                 'user': user_serializer.data,
+            #                 'message': 'Inicio De Sesion Exitosa'
+            #             },status = status.HTTP_200_OK)
+                        
+            # else:
+            #     myIntentos = user_intento.intentos + 1
+            #     intentosRestantes = 0 + user_intento.intentos
+            #     User.objects.filter(username=user_intento).update(intentos=myIntentos)
+            #     return Response({'error': 'Contraseña o usuario no valido', 'intentos_restante': intentosRestantes   }, status = status.HTTP_400_BAD_REQUEST)
                         
                     
                 
